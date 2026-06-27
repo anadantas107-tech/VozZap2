@@ -273,14 +273,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ userId, onNavigate
               onClick={() => setActiveTab('followers')}
               className="text-center hover:text-vz-primary transition-colors"
             >
-              <div className="font-black text-lg text-[var(--text-primary)]">{formatCount(getFollowerCount(profileUser.id) || profileUser.followersCount || 0)}</div>
+              <div className="font-black text-lg text-[var(--text-primary)]">{formatCount(getFollowerCount(profileUser.id) ?? profileUser.followersCount ?? 0)}</div>
               <div className="text-xs text-[var(--text-secondary)]">seguidores</div>
             </button>
             <button
               onClick={() => setActiveTab('following')}
               className="text-center hover:text-vz-primary transition-colors"
             >
-              <div className="font-black text-lg text-[var(--text-primary)]">{formatCount(getFollowingCount(profileUser.id) || profileUser.followingCount || 0)}</div>
+              <div className="font-black text-lg text-[var(--text-primary)]">{formatCount(getFollowingCount(profileUser.id) ?? profileUser.followingCount ?? 0)}</div>
               <div className="text-xs text-[var(--text-secondary)]">seguindo</div>
             </button>
           </div>

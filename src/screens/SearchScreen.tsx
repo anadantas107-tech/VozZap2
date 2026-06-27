@@ -165,7 +165,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onOpenProfile }) => 
               <div className="space-y-3">
                 {filteredUsers.map(user => {
                   const isFollowing = followingIds.has(user.id);
-                  const followerCount = getFollowerCount(user.id) || user.followersCount || 0;
+                  const followerCount = getFollowerCount(user.id) ?? user.followersCount ?? 0;
                   return (
                     <div
                       key={user.id}
