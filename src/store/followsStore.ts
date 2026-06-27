@@ -9,11 +9,17 @@ import { User } from '@/types';
 interface FollowsState {
   // Map: userId -> Set of user IDs following them
   followersMap: Map<string, Set<string>>;
+  followingMap: Map<string, Set<string>>;
   
   // Functions
   getFollowers: (userId: string) => string[];
+  getFollowing: (userId: string) => string[];
   addFollower: (userId: string, followerId: string) => void;
   removeFollower: (userId: string, followerId: string) => void;
+  addFollowing: (userId: string, targetId: string) => void;
+  removeFollowing: (userId: string, targetId: string) => void;
+  getFollowerCount: (userId: string) => number;
+  getFollowingCount: (userId: string) => number;
   getFollowerUsers: (userId: string, allUsers: Map<string, User>) => User[];
   getFollowingUsers: (followingIds: Set<string>, allUsers: Map<string, User>) => User[];
 }
@@ -26,10 +32,27 @@ export const useFollowsStore = create<FollowsState>((set, get) => {
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        // Convert back to Map<string, Set<string>>
         const map = new Map<string, Set<string>>();
         Object.entries(parsed).forEach(([userId, followers]: [string, any]) => {
           map.set(userId, new Set(followers));
+        });
+        return map;
+      } catch {
+        return new Map();
+      }
+    }
+    return new Map();
+  };
+
+  const getStoredFollowingMap = (): Map<string, Set<string>> => {
+    if (typeof window === 'undefined') return new Map();
+    const stored = localStorage.getItem('vozzap_following_map');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        const map = new Map<string, Set<string>>();
+        Object.entries(parsed).forEach(([userId, following]: [string, any]) => {
+          map.set(userId, new Set(following));
         });
         return map;
       } catch {
@@ -48,13 +71,29 @@ export const useFollowsStore = create<FollowsState>((set, get) => {
     localStorage.setItem('vozzap_followers_map', JSON.stringify(obj));
   };
 
+  const persistFollowingMap = (map: Map<string, Set<string>>) => {
+    if (typeof window === 'undefined') return;
+    const obj: { [key: string]: string[] } = {};
+    map.forEach((following, userId) => {
+      obj[userId] = Array.from(following);
+    });
+    localStorage.setItem('vozzap_following_map', JSON.stringify(obj));
+  };
+
   return {
     followersMap: getStoredFollowersMap(),
+    followingMap: getStoredFollowingMap(),
 
     getFollowers: (userId: string) => {
       const { followersMap } = get();
       const followers = followersMap.get(userId) || new Set();
       return Array.from(followers);
+    },
+
+    getFollowing: (userId: string) => {
+      const { followingMap } = get();
+      const following = followingMap.get(userId) || new Set();
+      return Array.from(following);
     },
 
     addFollower: (userId: string, followerId: string) => {
@@ -83,6 +122,42 @@ export const useFollowsStore = create<FollowsState>((set, get) => {
         persistFollowersMap(newMap);
         return { followersMap: newMap };
       });
+    },
+
+    addFollowing: (userId: string, targetId: string) => {
+      set((state) => {
+        const newMap = new Map(state.followingMap);
+        const following = newMap.get(userId) || new Set<string>();
+        following.add(targetId);
+        newMap.set(userId, following);
+        persistFollowingMap(newMap);
+        return { followingMap: newMap };
+      });
+    },
+
+    removeFollowing: (userId: string, targetId: string) => {
+      set((state) => {
+        const newMap = new Map(state.followingMap);
+        const following = newMap.get(userId);
+        if (following) {
+          following.delete(targetId);
+          if (following.size === 0) {
+            newMap.delete(userId);
+          } else {
+            newMap.set(userId, following);
+          }
+        }
+        persistFollowingMap(newMap);
+        return { followingMap: newMap };
+      });
+    },
+
+    getFollowerCount: (userId: string) => {
+      return get().getFollowers(userId).length;
+    },
+
+    getFollowingCount: (userId: string) => {
+      return get().getFollowing(userId).length;
     },
 
     getFollowerUsers: (userId: string, allUsers: Map<string, User>) => {

@@ -28,20 +28,18 @@ import toast from 'react-hot-toast';
 interface ProfileScreenProps {
   userId?: string; // If undefined, show current user's profile
   onNavigateToChat?: (userId: string) => void;
+  onOpenProfile?: (userId: string) => void;
   onBack?: () => void;
 }
 
-export const ProfileScreen: React.FC<ProfileScreenProps> = ({ userId, onNavigateToChat, onBack }) => {
+export const ProfileScreen: React.FC<ProfileScreenProps> = ({ userId, onNavigateToChat, onOpenProfile, onBack }) => {
   const { currentUser, updateProfile, logout, deleteAccount, followUser, unfollowUser, followingIds } = useAuthStore();
   const { getPostsByUser } = usePostsStore();
   const { getUser, loadUserFromSupabase } = useUsersStore();
-  const { getFollowers, getFollowingUsers } = useFollowsStore();
+  const { getFollowers, getFollowing, getFollowingCount, getFollowerCount } = useFollowsStore();
   const { theme, toggleTheme } = useThemeStore();
   const { startConversationWithUser, setActiveConversation } = useChatStore();
   const [loadingProfile, setLoadingProfile] = useState(false);
-  const [followers, setFollowers] = useState<User[]>([]);
-  const [following, setFollowing] = useState<User[]>([]);
-  const [allUsersMap, setAllUsersMap] = useState<Map<string, User>>(new Map());
 
   const isOwnProfile = !userId || userId === currentUser?.id;
   let profileUser: User | undefined = isOwnProfile
@@ -60,36 +58,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ userId, onNavigate
       });
     }
   }, [userId, isOwnProfile, profileUser, loadUserFromSupabase]);
-
-  // Build users map and load followers/following
-  useEffect(() => {
-    if (profileUser) {
-      // Build map of all users (MOCK_USERS + currentUser)
-      const map = new Map<string, User>();
-      MOCK_USERS.forEach(u => map.set(u.id, u));
-      if (currentUser) map.set(currentUser.id, currentUser);
-      setAllUsersMap(map);
-
-      // Get followers of this profile user
-      const followerIds = getFollowers(profileUser.id);
-      const followerUsers = followerIds
-        .map(id => map.get(id))
-        .filter((u): u is User => u !== undefined);
-      setFollowers(followerUsers);
-
-      // Get users this profile user is following
-      if (isOwnProfile && currentUser) {
-        // For current user, use the followingIds from auth store
-        const followingUsers = Array.from(followingIds)
-          .map(id => map.get(id))
-          .filter((u): u is User => u !== undefined);
-        setFollowing(followingUsers);
-      } else {
-        // For other users' profiles, show empty for now (would need Supabase table)
-        setFollowing([]);
-      }
-    }
-  }, [profileUser, isOwnProfile, currentUser, followingIds, getFollowers]);
 
   const [openComments, setOpenComments] = useState<string | null>(null);
   const [editPost, setEditPost] = useState<Post | null>(null);
@@ -114,6 +82,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ userId, onNavigate
 
   const userPosts = getPostsByUser(profileUser.id);
   const isFollowing = followingIds.has(profileUser.id);
+  const resolveUser = (id: string): User | undefined => {
+    return getUser(id) || MOCK_USERS.find(u => u.id === id) || (currentUser?.id === id ? currentUser : undefined);
+  };
+  const followerIds = getFollowers(profileUser.id);
+  const followingIdsForProfile = isOwnProfile ? Array.from(followingIds) : getFollowing(profileUser.id);
+  const followers = followerIds.map(resolveUser).filter((u): u is User => u !== undefined);
+  const following = followingIdsForProfile.map(resolveUser).filter((u): u is User => u !== undefined);
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -162,8 +137,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ userId, onNavigate
   };
 
   const handleMessageUser = () => {
-    if (!currentUser || !onNavigateToChat) return;
-    const convId = getOrCreateConversation(currentUser.id, profileUser.id);
+    if (!currentUser || !onNavigateToChat || !profileUser) return;
+    const convId = startConversationWithUser(currentUser.id, profileUser);
     setActiveConversation(convId);
     onNavigateToChat(profileUser.id);
   };
@@ -298,14 +273,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ userId, onNavigate
               onClick={() => setActiveTab('followers')}
               className="text-center hover:text-vz-primary transition-colors"
             >
-              <div className="font-black text-lg text-[var(--text-primary)]">{formatCount(profileUser.followersCount)}</div>
+              <div className="font-black text-lg text-[var(--text-primary)]">{formatCount(getFollowerCount(profileUser.id) || profileUser.followersCount || 0)}</div>
               <div className="text-xs text-[var(--text-secondary)]">seguidores</div>
             </button>
             <button
               onClick={() => setActiveTab('following')}
               className="text-center hover:text-vz-primary transition-colors"
             >
-              <div className="font-black text-lg text-[var(--text-primary)]">{formatCount(profileUser.followingCount)}</div>
+              <div className="font-black text-lg text-[var(--text-primary)]">{formatCount(getFollowingCount(profileUser.id) || profileUser.followingCount || 0)}</div>
               <div className="text-xs text-[var(--text-secondary)]">seguindo</div>
             </button>
           </div>
@@ -345,7 +320,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ userId, onNavigate
                   key={post.id}
                   post={post}
                   onOpenComments={setOpenComments}
-                  onOpenProfile={() => {}}
+                  onOpenProfile={userId => onOpenProfile?.(userId)}
                   onEdit={isOwnProfile ? setEditPost : undefined}
                   activeAudioId={activeAudioId}
                   onAudioPlay={setActiveAudioId}
@@ -358,7 +333,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ userId, onNavigate
         {activeTab === 'followers' && (
           <div className="space-y-3">
             {followers.map(user => (
-              <UserListItem key={user.id} user={user} currentUserId={currentUser?.id} followingIds={followingIds} onFollow={followUser} onUnfollow={unfollowUser} onOpenProfile={() => {}} />
+              <UserListItem key={user.id} user={user} currentUserId={currentUser?.id} followingIds={followingIds} onFollow={followUser} onUnfollow={unfollowUser} onOpenProfile={id => onOpenProfile?.(id)} />
             ))}
           </div>
         )}
@@ -366,7 +341,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ userId, onNavigate
         {activeTab === 'following' && (
           <div className="space-y-3">
             {following.map(user => (
-              <UserListItem key={user.id} user={user} currentUserId={currentUser?.id} followingIds={followingIds} onFollow={followUser} onUnfollow={unfollowUser} onOpenProfile={() => {}} />
+              <UserListItem key={user.id} user={user} currentUserId={currentUser?.id} followingIds={followingIds} onFollow={followUser} onUnfollow={unfollowUser} onOpenProfile={id => onOpenProfile?.(id)} />
             ))}
           </div>
         )}

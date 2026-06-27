@@ -162,6 +162,7 @@ export default function App() {
               <ProfileScreen
                 userId={viewingUserId}
                 onNavigateToChat={handleNavigateToChat}
+                onOpenProfile={handleOpenProfile}
                 onBack={viewingUserId ? () => {
                   setViewingUserId(undefined);
                   // Go back to previous context

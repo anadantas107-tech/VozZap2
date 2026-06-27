@@ -201,22 +201,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
       sentAt: new Date().toISOString(),
     };
 
-    if (supabase) {
-      const { data, error } = await supabase.from('direct_messages').insert({
-        sender_id: senderId,
-        receiver_id: receiverId,
-        text,
-        audio_url: audioUrl,
-        audio_duration: audioDuration,
-        read: false,
-      }).select('*').single();
+    if (supabase && isSupabaseUuid(senderId) && isSupabaseUuid(receiverId)) {
+      try {
+        const { data, error } = await supabase.from('direct_messages').insert({
+          sender_id: senderId,
+          receiver_id: receiverId,
+          text,
+          audio_url: audioUrl,
+          audio_duration: audioDuration,
+          read: false,
+        }).select('*').single();
 
-      if (!error && data) {
-        newMsg.id = data.id;
-        newMsg.sentAt = data.created_at;
-      } else if (error) {
+        if (!error && data) {
+          newMsg.id = data.id;
+          newMsg.sentAt = data.created_at;
+        } else if (error) {
+          reportSupabaseError('chat.sendMessage', error);
+        }
+      } catch (error) {
         reportSupabaseError('chat.sendMessage', error);
-        return;
       }
     }
 

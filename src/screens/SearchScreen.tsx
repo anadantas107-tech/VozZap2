@@ -7,6 +7,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, UserPlus, UserCheck } from 'lucide-react';
 import { usePostsStore } from '@/store/postsStore';
 import { useAuthStore, MOCK_USERS } from '@/store/authStore';
+import { useFollowsStore } from '@/store/followsStore';
 import { Category } from '@/types';
 import { PostCard } from '@/components/PostCard';
 import { Avatar } from '@/components/ui/Avatar';
@@ -26,6 +27,7 @@ interface SearchScreenProps {
 export const SearchScreen: React.FC<SearchScreenProps> = ({ onOpenProfile }) => {
   const { searchPosts } = usePostsStore();
   const { currentUser, followingIds, followUser, unfollowUser } = useAuthStore();
+  const { getFollowerCount } = useFollowsStore();
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<Category | undefined>();
   const [activeTab, setActiveTab] = useState<'posts' | 'people'>('posts');
@@ -163,6 +165,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onOpenProfile }) => 
               <div className="space-y-3">
                 {filteredUsers.map(user => {
                   const isFollowing = followingIds.has(user.id);
+                  const followerCount = getFollowerCount(user.id) || user.followersCount || 0;
                   return (
                     <div
                       key={user.id}
@@ -183,7 +186,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onOpenProfile }) => 
                         </button>
                         <p className="text-xs text-[var(--text-secondary)] truncate">{user.bio}</p>
                         <div className="flex gap-3 mt-1 text-xs text-[var(--text-secondary)]">
-                          <span><strong>{formatCount(user.followersCount)}</strong> seguidores</span>
+                          <span><strong>{formatCount(followerCount)}</strong> seguidores</span>
                           <span><strong>{user.postsCount}</strong> posts</span>
                         </div>
                       </div>

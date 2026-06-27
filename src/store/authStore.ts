@@ -446,9 +446,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     newFollowing.add(userId);
     persistFollowing(newFollowing);
     
-    // Track follower relationship: currentUser follows userId, so userId gets a new follower
     if (currentUser) {
-      useFollowsStore.getState().addFollower(userId, currentUser.id);
+      const followsStore = useFollowsStore.getState();
+      followsStore.addFollowing(currentUser.id, userId);
+      followsStore.addFollower(userId, currentUser.id);
       const updated = { ...currentUser, followingCount: currentUser.followingCount + 1 };
       persistUser(updated);
       set({ followingIds: newFollowing, currentUser: updated });
@@ -463,9 +464,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     newFollowing.delete(userId);
     persistFollowing(newFollowing);
     
-    // Remove follower relationship
     if (currentUser) {
-      useFollowsStore.getState().removeFollower(userId, currentUser.id);
+      const followsStore = useFollowsStore.getState();
+      followsStore.removeFollowing(currentUser.id, userId);
+      followsStore.removeFollower(userId, currentUser.id);
       const updated = { ...currentUser, followingCount: Math.max(0, currentUser.followingCount - 1) };
       persistUser(updated);
       set({ followingIds: newFollowing, currentUser: updated });
